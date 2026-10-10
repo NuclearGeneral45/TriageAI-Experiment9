@@ -304,7 +304,7 @@ with tab_assessment:
             }
             st.session_state.patient_records.append(new_record)
             st.session_state.last_assessment = new_record
-            st.success("Assessment added to the dashboard for this session.")
+            st.rerun()
 
     if "last_assessment" in st.session_state:
         last = st.session_state.last_assessment
