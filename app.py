@@ -154,10 +154,30 @@ with graph_col3:
             else:
                 category_records = records[records["Predicted Priority"] == category]
                 st.caption(f"{len(category_records)} patient(s) • {summary.loc[summary['Priority'] == category, 'Percentage'].iloc[0]:.1f}% of current session assessments")
-                if category_records.empty:
-                    st.info("No patients in this category yet.")
-                else:
-                    st.dataframe(category_records, hide_index=True, use_container_width=True)
+                
+            if category_records.empty:
+                st.info("No patients in this category yet.")
+            else:
+                st.subheader(f"{category} — Patient Confidence")
+                chart_data = category_records[
+                    ["Patient Name", "Model Confidence (%)"]
+                ].copy()
+                chart_data = chart_data.sort_values(
+                    "Model Confidence (%)", ascending=False
+                )
+                st.line_chart(
+                    chart_data.set_index("Patient Name"),
+                    y="Model Confidence (%)",
+                    y_label="Model Confidence (%)",
+                    x_label="Patient Name",
+                    use_container_width=True
+                )
+                st.dataframe(
+                    category_records,
+                    hide_index=True,
+                    use_container_width=True
+                )
+
 
     if not records.empty:
         csv_bytes = records.to_csv(index=False).encode("utf-8")
