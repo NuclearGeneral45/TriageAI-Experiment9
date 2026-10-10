@@ -148,11 +148,13 @@ with graph_col3:
         (cat_mod, "Moderate Priority"),
         (cat_low, "Low Priority")
     ]:
-                with category_tab:
+          with category_tab:
             if records.empty:
                 st.info("No patient assessments yet. Add a patient in the Patient Assessment tab.")
             else:
-                category_records = records[records["Predicted Priority"] == category]
+                category_records = records[
+                    records["Predicted Priority"] == category
+                ]
 
                 if category_records.empty:
                     st.info("No patients in this category yet.")
@@ -180,6 +182,19 @@ with graph_col3:
                         hide_index=True,
                         use_container_width=True
                     )
+
+        if not records.empty:
+            csv_bytes = records.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "⬇️ Download current-session patient records (CSV)",
+                data=csv_bytes,
+                file_name="triageai_patient_assessments.csv",
+                mime="text/csv"
+            )
+
+            if st.button("Clear current-session records", type="secondary"):
+                st.session_state.patient_records = []
+                st.rerun()
 
     if not records.empty:
         csv_bytes = records.to_csv(index=False).encode("utf-8")
