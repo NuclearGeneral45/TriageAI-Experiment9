@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from datetime import datetime
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -13,6 +12,7 @@ st.set_page_config(page_title="TriageAI", page_icon="🚑", layout="wide")
 
 DATA_FILE = "triage_healthcare_data.csv"
 PRIORITY_ORDER = ["High Priority", "Moderate Priority", "Low Priority"]
+
 
 @st.cache_resource
 def train_model():
@@ -40,7 +40,10 @@ def train_model():
         ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
     ])
     model = RandomForestClassifier(
-        n_estimators=180, max_depth=10, random_state=42, class_weight="balanced"
+        n_estimators=180,
+        max_depth=10,
+        random_state=42,
+        class_weight="balanced"
     )
     pipeline = Pipeline([("preprocessor", preprocessor), ("model", model)])
     X_train, X_test, y_train, y_test = train_test_split(
@@ -49,6 +52,7 @@ def train_model():
     pipeline.fit(X_train, y_train)
     pred = pipeline.predict(X_test)
     return data, pipeline, X_test, y_test, pred
+
 
 data, pipeline, X_test, y_test, pred = train_model()
 accuracy = accuracy_score(y_test, pred)
@@ -83,24 +87,34 @@ tab_dashboard, tab_assessment, tab_xai, tab_eval, tab_method = st.tabs([
     "📚 Project Methodology"
 ])
 
+
 def priority_counts(records_df):
     if records_df.empty:
-        return pd.DataFrame({"Priority": PRIORITY_ORDER, "Patients": [0, 0, 0], "Percentage": [0.0, 0.0, 0.0]})
+        return pd.DataFrame({
+            "Priority": PRIORITY_ORDER,
+            "Patients": [0, 0, 0],
+            "Percentage": [0.0, 0.0, 0.0]
+        })
+
     counts = records_df["Predicted Priority"].value_counts()
     total = len(records_df)
     return pd.DataFrame({
         "Priority": PRIORITY_ORDER,
-        "Patients": [int(counts.get(p, 0)) for p in PRIORITY_ORDER],
-        "Percentage": [round(counts.get(p, 0) / total * 100, 1) for p in PRIORITY_ORDER]
+        "Patients": [int(counts.get(priority, 0)) for priority in PRIORITY_ORDER],
+        "Percentage": [
+            round(counts.get(priority, 0) / total * 100, 1)
+            for priority in PRIORITY_ORDER
+        ]
     })
+
 
 with tab_dashboard:
     st.header("Patient Priority Dashboard")
-    st.write("This dashboard summarizes the assessments made during the current app session.")
+    st.write("This dashboard summarizes assessments made during the current app session.")
     records = pd.DataFrame(st.session_state.patient_records)
     summary = priority_counts(records)
-
     total = len(records)
+
     high_n = int(summary.loc[summary["Priority"] == "High Priority", "Patients"].iloc[0])
     moderate_n = int(summary.loc[summary["Priority"] == "Moderate Priority", "Patients"].iloc[0])
     low_n = int(summary.loc[summary["Priority"] == "Low Priority", "Patients"].iloc[0])
@@ -113,101 +127,111 @@ with tab_dashboard:
 
     st.subheader("Category-wise patient count")
     st.bar_chart(summary.set_index("Priority")[["Patients"]], use_container_width=True)
+
     st.subheader("Category-wise percentage")
-    pct_chart = summary.set_index("Priority")[["Percentage"]]
-    st.bar_chart(pct_chart, use_container_width=True)
-    
-st.subheader("Individual priority percentages")
+    st.bar_chart(summary.set_index("Priority")[["Percentage"]], use_container_width=True)
 
-graph_col1, graph_col2, graph_col3 = st.columns(3)
+    st.subheader("Individual priority percentages")
+    graph_col1, graph_col2, graph_col3 = st.columns(3)
 
-with graph_col1:
-    st.markdown("### 🔴 High Priority")
-    high_pct = float(summary.loc[summary["Priority"] == "High Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "High Priority").any() else 0.0
-    st.metric("Patient percentage", f"{high_pct:.1f}%")
-    st.progress(int(round(high_pct)))
+    with graph_col1:
+        st.markdown("### 🔴 High Priority")
+        high_pct = float(summary.loc[summary["Priority"] == "High Priority", "Percentage"].iloc[0])
+        st.metric("Share of assessed patients", f"{high_pct:.1f}%")
+        st.progress(int(round(high_pct)))
 
-with graph_col2:
-    st.markdown("### 🟠 Moderate Priority")
-    moderate_pct = float(summary.loc[summary["Priority"] == "Moderate Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "Moderate Priority").any() else 0.0
-    st.metric("Patient percentage", f"{moderate_pct:.1f}%")
-    st.progress(int(round(moderate_pct)))
+    with graph_col2:
+        st.markdown("### 🟠 Moderate Priority")
+        moderate_pct = float(summary.loc[summary["Priority"] == "Moderate Priority", "Percentage"].iloc[0])
+        st.metric("Share of assessed patients", f"{moderate_pct:.1f}%")
+        st.progress(int(round(moderate_pct)))
 
-with graph_col3:
-    st.markdown("### 🟢 Low Priority")
-    low_pct = float(summary.loc[summary["Priority"] == "Low Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "Low Priority").any() else 0.0
-    st.metric("Patient percentage", f"{low_pct:.1f}%")
-    st.progress(int(round(low_pct)))
+    with graph_col3:
+        st.markdown("### 🟢 Low Priority")
+        low_pct = float(summary.loc[summary["Priority"] == "Low Priority", "Percentage"].iloc[0])
+        st.metric("Share of assessed patients", f"{low_pct:.1f}%")
+        st.progress(int(round(low_pct)))
 
     st.dataframe(summary, hide_index=True, use_container_width=True)
 
-    st.subheader("Patient lists by category")
-    cat_high, cat_mod, cat_low = st.tabs(["🔴 High Priority", "🟠 Moderate Priority", "🟢 Low Priority"])
+    st.subheader("Patient lists and confidence graphs by category")
+    cat_high, cat_mod, cat_low = st.tabs([
+        "🔴 High Priority", "🟠 Moderate Priority", "🟢 Low Priority"
+    ])
+
     for category_tab, category in [
         (cat_high, "High Priority"),
         (cat_mod, "Moderate Priority"),
         (cat_low, "Low Priority")
     ]:
-          with category_tab:
+        with category_tab:
             if records.empty:
-                st.info("No patient assessments yet. Add a patient in the Patient Assessment tab.")
+                st.info("No patient assessments yet. Add a demo patient in the Patient Assessment tab.")
             else:
                 category_records = records[
                     records["Predicted Priority"] == category
-                ]
+                ].copy()
 
                 if category_records.empty:
                     st.info("No patients in this category yet.")
                 else:
-                    st.subheader(f"{category} - Patient Confidence")
-
+                    st.subheader(f"{category} — Model Confidence by Patient")
                     chart_data = category_records[
                         ["Patient Name", "Model Confidence (%)"]
                     ].copy()
-
                     chart_data = chart_data.sort_values(
                         "Model Confidence (%)", ascending=False
                     )
-
                     st.line_chart(
                         chart_data.set_index("Patient Name"),
                         y="Model Confidence (%)",
-                        y_label="Model Confidence (%)",
-                        x_label="Patient Name",
+                        y_label="Model confidence (%)",
+                        x_label="Patient name",
                         use_container_width=True
                     )
-
+                    st.caption(
+                        "This shows the model's confidence in its predicted category, "
+                        "not a medically validated risk percentage."
+                    )
                     st.dataframe(
                         category_records,
                         hide_index=True,
                         use_container_width=True
                     )
 
-        if not records.empty:
-            csv_bytes = records.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "⬇️ Download current-session patient records (CSV)",
-                data=csv_bytes,
-                file_name="triageai_patient_assessments.csv",
-                mime="text/csv"
-            )
+    if not records.empty:
+        csv_bytes = records.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "⬇️ Download current-session patient records (CSV)",
+            data=csv_bytes,
+            file_name="triageai_patient_assessments.csv",
+            mime="text/csv"
+        )
+        if st.button("Clear current-session records", type="secondary"):
+            st.session_state.patient_records = []
+            if "last_assessment" in st.session_state:
+                del st.session_state["last_assessment"]
+            st.rerun()
 
-            if st.button("Clear current-session records", type="secondary"):
-                st.session_state.patient_records = []
-                st.rerun()
 
 with tab_assessment:
     st.header("Patient Assessment")
-    st.write("Enter a patient's identity label and observed values, then run the academic model.")
+    st.write("Enter a demo identity label and observed values, then run the academic model.")
     st.info("For privacy, use fictional/demo names only. Do not enter real patient identifiers or clinical data.")
 
     with st.form("patient_assessment_form"):
         st.subheader("Patient identification")
         p1, p2 = st.columns(2)
         with p1:
-            patient_name = st.text_input("Patient name / demo name", placeholder="e.g., Demo Patient 001")
+            patient_name = st.text_input(
+                "Patient name / demo name",
+                placeholder="e.g., Demo Patient 001"
+            )
         with p2:
-            patient_id = st.text_input("Patient ID / record label", placeholder="e.g., DEMO-001")
+            patient_id = st.text_input(
+                "Patient ID / record label",
+                placeholder="e.g., DEMO-001"
+            )
 
         st.subheader("Patient observations")
         c1, c2, c3 = st.columns(3)
@@ -247,11 +271,15 @@ with tab_assessment:
                 "breathing_difficulty": breathing_difficulty,
                 "trauma": trauma
             }])
+
             prediction = pipeline.predict(patient)[0]
             probabilities = pipeline.predict_proba(patient)[0]
             classes = list(pipeline.classes_)
             confidence = float(probabilities[classes.index(prediction)])
-            probability_map = {str(cls): float(prob) for cls, prob in zip(classes, probabilities)}
+            probability_map = {
+                str(cls): float(prob)
+                for cls, prob in zip(classes, probabilities)
+            }
 
             new_record = {
                 "Assessment Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -282,15 +310,17 @@ with tab_assessment:
         last = st.session_state.last_assessment
         st.divider()
         st.subheader("Latest assessment result")
-        st.write(f"**Patient:** {last['Patient Name']}  |  **ID:** {last['Patient ID']}")
+        st.write(f"**Patient:** {last['Patient Name']} | **ID:** {last['Patient ID']}")
+
         if last["Predicted Priority"] == "High Priority":
             st.error(f"🔴 HIGH PRIORITY — model confidence {last['Model Confidence (%)']:.1f}%")
         elif last["Predicted Priority"] == "Moderate Priority":
             st.warning(f"🟠 MODERATE PRIORITY — model confidence {last['Model Confidence (%)']:.1f}%")
         else:
             st.success(f"🟢 LOW PRIORITY — model confidence {last['Model Confidence (%)']:.1f}%")
+
         probability_df = pd.DataFrame({
-            "Priority": ["High Priority", "Moderate Priority", "Low Priority"],
+            "Priority": PRIORITY_ORDER,
             "Probability (%)": [
                 last["High Priority (%)"],
                 last["Moderate Priority (%)"],
@@ -300,6 +330,7 @@ with tab_assessment:
         st.bar_chart(probability_df.set_index("Priority"))
         st.caption("This is an academic model output, not a clinical recommendation.")
 
+
 with tab_xai:
     st.header("Explainable AI")
     st.write(
@@ -308,67 +339,73 @@ with tab_xai:
     )
     preprocessor = pipeline.named_steps["preprocessor"]
     rf = pipeline.named_steps["model"]
-    
-raw_feature_names = preprocessor.get_feature_names_out()
-importances = rf.feature_importances_
+    raw_feature_names = preprocessor.get_feature_names_out()
+    importances = rf.feature_importances_
 
-feature_labels = {
-    "age": "Age",
-    "heart_rate_bpm": "Heart Rate (bpm)",
-    "systolic_bp_mmhg": "Systolic Blood Pressure (mmHg)",
-    "respiratory_rate_bpm": "Respiratory Rate (breaths/min)",
-    "spo2_percent": "Oxygen Saturation (SpO2)",
-    "temperature_c": "Body Temperature (°C)",
-    "pain_score_0_10": "Pain Score (0–10)",
-    "consciousness_alert": "Consciousness Alert",
-    "consciousness_confused": "Consciousness Confused",
-    "consciousness_unresponsive": "Consciousness Unresponsive",
-    "chest_pain_no": "Chest Pain — No",
-    "chest_pain_yes": "Chest Pain — Yes",
-    "breathing_difficulty_no": "Breathing Difficulty — No",
-    "breathing_difficulty_yes": "Breathing Difficulty — Yes",
-    "trauma_no": "Trauma — No",
-    "trauma_yes": "Trauma — Yes",
-}
+    feature_labels = {
+        "age": "Age",
+        "heart_rate_bpm": "Heart Rate (bpm)",
+        "systolic_bp_mmhg": "Systolic Blood Pressure (mmHg)",
+        "respiratory_rate_bpm": "Respiratory Rate (breaths/min)",
+        "spo2_percent": "Oxygen Saturation (SpO2)",
+        "temperature_c": "Body Temperature (°C)",
+        "pain_score_0_10": "Pain Score (0–10)",
+        "consciousness_alert": "Consciousness Alert",
+        "consciousness_confused": "Consciousness Confused",
+        "consciousness_unresponsive": "Consciousness Unresponsive",
+        "chest_pain_no": "Chest Pain — No",
+        "chest_pain_yes": "Chest Pain — Yes",
+        "breathing_difficulty_no": "Breathing Difficulty — No",
+        "breathing_difficulty_yes": "Breathing Difficulty — Yes",
+        "trauma_no": "Trauma — No",
+        "trauma_yes": "Trauma — Yes"
+    }
 
-feature_names = [
-    feature_labels.get(
-        name.replace("num__", "").replace("cat__", ""),
-        name.replace("num__", "").replace("cat__", "").replace("_", " ").title()
-    )
-    for name in raw_feature_names
-]
+    feature_names = [
+        feature_labels.get(
+            name.replace("num__", "").replace("cat__", ""),
+            name.replace("num__", "").replace("cat__", "").replace("_", " ").title()
+        )
+        for name in raw_feature_names
+    ]
 
-importance_df = pd.DataFrame({
-    "Feature": feature_names,
-    "Importance": importances
-})
+    importance_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": importances
+    })
+    importance_df = importance_df.sort_values(
+        "Importance", ascending=False
+    ).head(12)
+    st.bar_chart(importance_df.set_index("Feature"))
 
-importance_df = importance_df.sort_values(
-    "Importance", ascending=False
-).head(12)
-
-st.bar_chart(importance_df.set_index("Feature"))
 
 with tab_eval:
     st.header("Model Evaluation")
     m1, m2 = st.columns(2)
     m1.metric("Test Accuracy", f"{accuracy * 100:.2f}%")
     m2.metric("Test Samples", len(y_test))
+
     cm = confusion_matrix(y_test, pred, labels=PRIORITY_ORDER)
     st.subheader("Confusion Matrix")
-    st.dataframe(pd.DataFrame(
-        cm,
-        index=["Actual High", "Actual Moderate", "Actual Low"],
-        columns=["Predicted High", "Predicted Moderate", "Predicted Low"]
-    ), use_container_width=True)
+    st.dataframe(
+        pd.DataFrame(
+            cm,
+            index=["Actual High", "Actual Moderate", "Actual Low"],
+            columns=["Predicted High", "Predicted Moderate", "Predicted Low"]
+        ),
+        use_container_width=True
+    )
+
     st.subheader("Classification Report")
     report = classification_report(
-        y_test, pred, labels=PRIORITY_ORDER, output_dict=True, zero_division=0
+        y_test, pred, labels=PRIORITY_ORDER,
+        output_dict=True, zero_division=0
     )
     st.dataframe(pd.DataFrame(report).transpose(), use_container_width=True)
+
     st.subheader("Training Dataset Preview")
     st.dataframe(data.head(15), use_container_width=True)
+
 
 with tab_method:
     st.header("Experiment 9 Methodology")
