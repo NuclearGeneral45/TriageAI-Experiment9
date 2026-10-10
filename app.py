@@ -262,6 +262,7 @@ with tab_xai:
     rf = pipeline.named_steps["model"]
     
 raw_feature_names = preprocessor.get_feature_names_out()
+importances = rf.feature_importances_
 
 feature_labels = {
     "age": "Age",
@@ -282,22 +283,24 @@ feature_labels = {
     "trauma_yes": "Trauma — Yes",
 }
 
-feature_names = []
-for name in raw_feature_names:
-    clean_name = name.replace("num__", "").replace("cat__", "")
-    feature_names.append(
-        feature_labels.get(
-            clean_name,
-            clean_name.replace("_", " ").title()
-        )
+feature_names = [
+    feature_labels.get(
+        name.replace("num__", "").replace("cat__", ""),
+        name.replace("num__", "").replace("cat__", "").replace("_", " ").title()
     )
+    for name in raw_feature_names
+]
 
-    importances = rf.feature_importances_
-    importance_df = pd.DataFrame({
-        "Feature": feature_names,
-        "Importance": importances
-    }).sort_values("Importance", ascending=False).head(12)
-    st.bar_chart(importance_df.set_index("Feature"))
+importance_df = pd.DataFrame({
+    "Feature": feature_names,
+    "Importance": importances
+})
+
+importance_df = importance_df.sort_values(
+    "Importance", ascending=False
+).head(12)
+
+st.bar_chart(importance_df.set_index("Feature"))
 
 with tab_eval:
     st.header("Model Evaluation")
