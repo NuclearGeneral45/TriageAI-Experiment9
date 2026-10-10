@@ -302,9 +302,17 @@ with tab_assessment:
                 "Moderate Priority (%)": round(probability_map.get("Moderate Priority", 0) * 100, 1),
                 "Low Priority (%)": round(probability_map.get("Low Priority", 0) * 100, 1)
             }
-            st.session_state.patient_records.append(new_record)
-            st.session_state.last_assessment = new_record
-            st.rerun()
+           existing_ids = {
+    str(record["Patient ID"]).strip()
+    for record in st.session_state.patient_records
+}
+
+if str(new_record["Patient ID"]).strip() in existing_ids:
+    st.error("Patient ID already exists. Please enter a unique ID.")
+else:
+    st.session_state.patient_records.append(new_record)
+    st.session_state.last_assessment = new_record
+    st.rerun()
 
     if "last_assessment" in st.session_state:
         last = st.session_state.last_assessment
