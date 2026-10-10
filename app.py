@@ -196,18 +196,6 @@ with graph_col3:
                 st.session_state.patient_records = []
                 st.rerun()
 
-    if not records.empty:
-        csv_bytes = records.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "⬇️ Download current-session patient records (CSV)",
-            data=csv_bytes,
-            file_name="triageai_patient_assessments.csv",
-            mime="text/csv"
-        )
-        if st.button("Clear current-session records", type="secondary"):
-            st.session_state.patient_records = []
-            st.rerun()
-
 with tab_assessment:
     st.header("Patient Assessment")
     st.write("Enter a patient's identity label and observed values, then run the academic model.")
