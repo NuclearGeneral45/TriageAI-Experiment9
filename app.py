@@ -260,7 +260,38 @@ with tab_xai:
     )
     preprocessor = pipeline.named_steps["preprocessor"]
     rf = pipeline.named_steps["model"]
-    feature_names = preprocessor.get_feature_names_out()
+    
+raw_feature_names = preprocessor.get_feature_names_out()
+
+feature_labels = {
+    "age": "Age",
+    "heart_rate_bpm": "Heart Rate (bpm)",
+    "systolic_bp_mmhg": "Systolic Blood Pressure (mmHg)",
+    "respiratory_rate_bpm": "Respiratory Rate (breaths/min)",
+    "spo2_percent": "Oxygen Saturation (SpO2)",
+    "temperature_c": "Body Temperature (°C)",
+    "pain_score_0_10": "Pain Score (0–10)",
+    "consciousness_alert": "Consciousness Alert",
+    "consciousness_confused": "Consciousness Confused",
+    "consciousness_unresponsive": "Consciousness Unresponsive",
+    "chest_pain_no": "Chest Pain — No",
+    "chest_pain_yes": "Chest Pain — Yes",
+    "breathing_difficulty_no": "Breathing Difficulty — No",
+    "breathing_difficulty_yes": "Breathing Difficulty — Yes",
+    "trauma_no": "Trauma — No",
+    "trauma_yes": "Trauma — Yes",
+}
+
+feature_names = []
+for name in raw_feature_names:
+    clean_name = name.replace("num__", "").replace("cat__", "")
+    feature_names.append(
+        feature_labels.get(
+            clean_name,
+            clean_name.replace("_", " ").title()
+        )
+    )
+
     importances = rf.feature_importances_
     importance_df = pd.DataFrame({
         "Feature": feature_names,
