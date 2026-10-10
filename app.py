@@ -116,6 +116,29 @@ with tab_dashboard:
     st.subheader("Category-wise percentage")
     pct_chart = summary.set_index("Priority")[["Percentage"]]
     st.bar_chart(pct_chart, use_container_width=True)
+    
+st.subheader("Individual priority percentages")
+
+graph_col1, graph_col2, graph_col3 = st.columns(3)
+
+with graph_col1:
+    st.markdown("### 🔴 High Priority")
+    high_pct = float(summary.loc[summary["Priority"] == "High Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "High Priority").any() else 0.0
+    st.metric("Patient percentage", f"{high_pct:.1f}%")
+    st.progress(int(round(high_pct)))
+
+with graph_col2:
+    st.markdown("### 🟠 Moderate Priority")
+    moderate_pct = float(summary.loc[summary["Priority"] == "Moderate Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "Moderate Priority").any() else 0.0
+    st.metric("Patient percentage", f"{moderate_pct:.1f}%")
+    st.progress(int(round(moderate_pct)))
+
+with graph_col3:
+    st.markdown("### 🟢 Low Priority")
+    low_pct = float(summary.loc[summary["Priority"] == "Low Priority", "Percentage"].iloc[0]) if (summary["Priority"] == "Low Priority").any() else 0.0
+    st.metric("Patient percentage", f"{low_pct:.1f}%")
+    st.progress(int(round(low_pct)))
+
     st.dataframe(summary, hide_index=True, use_container_width=True)
 
     st.subheader("Patient lists by category")
